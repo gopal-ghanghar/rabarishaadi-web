@@ -1,141 +1,521 @@
-.page {
-  --background: #fafafa;
-  --foreground: #fff;
-
-  --text-primary: #000;
-  --text-secondary: #666;
-
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
-
-  display: flex;
+/* Global Layout */
+.container {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #fdfdfd;
+  font-family: var(--font-sans);
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-family: var(--font-geist-sans);
-  background-color: var(--background);
+  padding: 1rem 5%;
+  background: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #d6002a;
+  /* Premium Rabari Red */
+  letter-spacing: -0.5px;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.loginBtn {
+  font-weight: 600;
+  color: #374151;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+
+.loginBtn:hover {
+  color: #d6002a;
+}
+
+.signupBtn {
+  background: #d6002a;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 99px;
+  /* Pill shape */
+  font-weight: 600;
+  transition: all 0.2s;
+  text-decoration: none;
+  box-shadow: 0 4px 6px rgba(214, 0, 42, 0.2);
+}
+
+.signupBtn:hover {
+  background: #b90024;
+  transform: translateY(-1px);
 }
 
 .main {
+  flex: 1;
+}
+
+/* Hero Section */
+.hero {
+  position: relative;
+  height: 650px;
   display: flex;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 800px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  background-color: var(--foreground);
-  padding: 120px 60px;
-}
-
-.intro {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 24px;
-}
-
-.intro h1 {
-  max-width: 320px;
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 48px;
-  letter-spacing: -2.4px;
-  text-wrap: balance;
-  color: var(--text-primary);
-}
-
-.intro p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
-  text-wrap: balance;
-  color: var(--text-secondary);
-}
-
-.intro a {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.ctas {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  max-width: 440px;
-  gap: 16px;
-  font-size: 14px;
-}
-
-.ctas a {
-  display: flex;
-  justify-content: center;
   align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 128px;
-  border: 1px solid transparent;
-  transition: 0.2s;
-  cursor: pointer;
-  width: fit-content;
+  justify-content: center;
+  /* Center content like inspiration */
+  padding: 0 5%;
+  overflow: hidden;
+  color: white;
+}
+
+.heroBgImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.heroOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.4) 100%);
+  z-index: 1;
+}
+
+/* Restore heroContent */
+.heroContent {
+  position: relative;
+  z-index: 10;
+  /* Ensure it is above overlay */
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  justify-content: flex-start;
+  /* Left align by default, inner heroLeft handles center */
+  padding-left: 5%;
+}
+
+.heroLeft {
+  max-width: 550px;
+  text-align: center;
+  /* Center align text relative to container */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Center align children (card) */
+}
+
+.heroTitle {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.heroSubtitle {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.95);
+  margin-bottom: 2.5rem;
   font-weight: 500;
 }
 
-a.primary {
-  background: var(--text-primary);
-  color: var(--background);
-  gap: 8px;
+/* Quick Match Search Card */
+.searchCard {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(25px);
+  padding: 2.5rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  width: 100%;
 }
 
-a.secondary {
-  border-color: var(--button-secondary-border);
+.searchCardTitle {
+  font-size: 1.25rem;
+  color: white;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  text-align: center;
 }
 
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
-  }
-
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
-  }
+.searchGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  margin-bottom: 2rem;
 }
 
-@media (max-width: 600px) {
-  .main {
-    padding: 48px 24px;
-  }
-
-  .intro {
-    gap: 16px;
-  }
-
-  .intro h1 {
-    font-size: 32px;
-    line-height: 40px;
-    letter-spacing: -1.92px;
-  }
+/* Trust Section */
+.trustSection {
+  padding: 6rem 5%;
+  background: #FFFBF7;
+  /* Warm background */
+  text-align: center;
 }
 
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4rem;
+  font-family: var(--font-heading);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.featureCard {
+  background: white;
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  /* Very subtle base shadow */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(255, 241, 242, 0.5);
+  /* Faint red-tint border */
+}
+
+.featureCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.iconWrapper {
+  width: 80px;
+  height: 80px;
+  background: #fff1f2;
+  /* Lightest Red */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.featureCard:hover .iconWrapper {
+  background: #ffe4e6;
+  transform: scale(1.1);
+}
+
+.featureCard .icon {
+  color: #be123c;
+  /* Rabari Red */
+}
+
+.featureCard h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #1f2937;
+}
+
+.featureCard p {
+  color: #6b7280;
+  line-height: 1.6;
+  font-size: 1rem;
+  max-width: 280px;
+  /* Limit line length for readability */
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.formGroup label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.searchInput {
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.9);
+  /* Semi-transparent white */
+  color: #1f2937;
+  width: 100%;
+  font-size: 0.95rem;
+  outline: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.searchInput:focus {
+  background: white;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+  border-color: white;
+}
+
+.searchBtn {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  /* Gradient Red */
+  color: white;
+  text-align: center;
+  font-weight: 700;
+  border-radius: 50px;
+  /* Pill shape button */
+  text-decoration: none;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(185, 28, 28, 0.4);
+}
+
+.searchBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(185, 28, 28, 0.6);
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+/* Hide old classes */
+/* Hide old classes */
+.heroContainer,
+.heroImageWrapper,
+.heroImg,
+.highlight,
+.heroSubtitle,
+.heroCta,
+.ctaButton {
+  display: none;
+}
+
+.trustTagline {
+  margin-top: 1.5rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  text-align: center;
+  font-size: 1.1rem;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* How It Works Section */
+.howItWorksSection {
+  padding: 5rem 5%;
+  background: #fff;
+  text-align: center;
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  color: #111827;
+  margin-bottom: 3rem;
+  font-family: var(--font-heading);
+}
+
+.stepsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.stepCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 2rem;
+  border: 1px solid var(--color-gold);
+  /* Gold Border */
+  border-radius: 12px;
+  background: #fff;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.stepCard:hover {
+  box-shadow: 0 10px 30px rgba(197, 160, 89, 0.15);
+  transform: translateY(-5px);
+}
+
+.stepNumber {
+  width: 40px;
+  height: 40px;
+  background: var(--color-gold);
+  color: white;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  bottom: -20px;
+  border: 4px solid white;
+}
+
+.stepCard h3 {
+  font-size: 1.25rem;
+  color: #1f2937;
+  margin: 1.5rem 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stepCard p {
+  color: #6b7280;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+/* Stories Section */
+.storiesSection {
+  padding: 5rem 5%;
+  background: #f9fafb;
+  text-align: center;
+}
+
+.storyCard {
+  background: white;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 3rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  background-image: linear-gradient(to right, #ffffff, #fff1f2);
+  border: 1px solid #fee2e2;
+}
+
+.storyContent h3 {
+  font-size: 1.5rem;
+  color: #d6002a;
+  margin-bottom: 0.5rem;
+}
+
+.storyContent p {
+  color: #4b5563;
+  font-style: italic;
+}
+
+.storyText {
+  margin-top: 1.5rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #374151;
+}
+
+/* FAQ Section */
+.faqSection {
+  padding: 5rem 5%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.faqGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.faqItem {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  background: white;
+  cursor: pointer;
+}
+
+.faqItem summary {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.faqItem p {
+  margin-top: 1rem;
+  color: #6b7280;
+}
+
+/* Footer */
+.footer {
+  background: #111827;
+  color: #e5e7eb;
+  padding: 4rem 5% 2rem;
+}
+
+.footerContent {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 3rem;
+  max-width: 1200px;
+  margin: 0 auto 3rem;
+}
+
+.footerCol h4 {
+  color: white;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.footerCol a {
+  display: block;
+  color: #9ca3af;
+  text-decoration: none;
+  margin-bottom: 0.75rem;
+  transition: color 0.2s;
+}
+
+.footerCol a:hover {
+  color: #d6002a;
+}
+
+.copyright {
+  text-align: center;
+  color: #6b7280;
+  padding-top: 2rem;
+  border-top: 1px solid #374151;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .heroContainer {
+    flex-direction: column-reverse;
+    /* Image on top on mobile? No, Content first is usually better SEO, but Image first visually? Let's keep content first */
+    flex-direction: column;
   }
 
-  .page {
-    --background: #000;
-    --foreground: #000;
+  .heroTitle {
+    font-size: 2.5rem;
+  }
 
-    --text-primary: #ededed;
-    --text-secondary: #999;
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
+  .heroImageWrapper {
+    height: 350px;
+    width: 100%;
   }
 }
