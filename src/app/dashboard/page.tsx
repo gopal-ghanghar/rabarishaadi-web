@@ -41,7 +41,9 @@ export default function DashboardPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<any>({});
     const [saving, setSaving] = useState(false);
-    const [stats, setStats] = useState({ shortlistedBy: 0 });
+    const [stats, setStats] = useState<{ shortlistedBy: number; percentageChange: number; trend: string }>({ shortlistedBy: 0, percentageChange: 0, trend: 'neutral' });
+    const [viewStats, setViewStats] = useState<{ totalViews: number; percentageChange: number; trend: string }>({ totalViews: 0, percentageChange: 0, trend: 'neutral' });
+    const [connectionStats, setConnectionStats] = useState<{ totalReceived: number; percentageChange: number; trend: string }>({ totalReceived: 0, percentageChange: 0, trend: 'neutral' });
 
     useEffect(() => {
         // Hydrate from localStorage
@@ -54,16 +56,40 @@ export default function DashboardPage() {
 
         fetchProfile(storedToken);
         fetchStats(storedToken);
+        fetchViewStats(storedToken);
+        fetchConnectionStats(storedToken);
     }, []);
 
     const fetchStats = async (authToken: string) => {
         try {
-            const data = await fetchApi('/shortlist/received-count', {
+            const data = await fetchApi('/shortlist/received-stats', {
                 headers: { 'Authorization': `Bearer ${authToken}` }
             });
-            setStats(prev => ({ ...prev, shortlistedBy: data.count }));
+            setStats({ shortlistedBy: data.totalCount, percentageChange: data.percentageChange, trend: data.trend });
         } catch (error) {
             console.error('Failed to fetch stats', error);
+        }
+    };
+
+    const fetchViewStats = async (authToken: string) => {
+        try {
+            const data = await fetchApi('/profile/views/stats', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            setViewStats({ totalViews: data.totalViews, percentageChange: data.percentageChange, trend: data.trend });
+        } catch (error) {
+            console.error('Failed to fetch view stats', error);
+        }
+    };
+
+    const fetchConnectionStats = async (authToken: string) => {
+        try {
+            const data = await fetchApi('/connections/stats', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            setConnectionStats({ totalReceived: data.totalReceived, percentageChange: data.percentageChange, trend: data.trend });
+        } catch (error) {
+            console.error('Failed to fetch connection stats', error);
         }
     };
 
@@ -127,8 +153,15 @@ export default function DashboardPage() {
                                 <Typography variant="body2" color="text.secondary">Total Profile Views</Typography>
                                 <Typography sx={{ bgcolor: 'background.default', px: 1, borderRadius: 1 }}>👁️</Typography>
                             </Box>
-                            <Typography variant="h4" fontWeight={700}>1,234</Typography>
-                            <Typography variant="caption" color="success.main" fontWeight={600}>↗ +12.5%</Typography>
+                            <Typography variant="h4" fontWeight={700}>{viewStats.totalViews.toLocaleString()}</Typography>
+                            <Typography
+                                variant="caption"
+                                fontWeight={600}
+                                color={viewStats.trend === 'up' ? 'success.main' : viewStats.trend === 'down' ? 'error.main' : 'text.secondary'}
+                            >
+                                {viewStats.trend === 'up' ? '↗' : viewStats.trend === 'down' ? '↘' : '→'}{' '}
+                                {viewStats.percentageChange > 0 ? '+' : ''}{viewStats.percentageChange}%
+                            </Typography>
                         </Paper>
 
                         <Paper sx={{ p: 3, borderRadius: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -136,8 +169,15 @@ export default function DashboardPage() {
                                 <Typography variant="body2" color="text.secondary">Interest Received</Typography>
                                 <Typography sx={{ bgcolor: 'background.default', px: 1, borderRadius: 1 }}>❤️</Typography>
                             </Box>
-                            <Typography variant="h4" fontWeight={700}>56</Typography>
-                            <Typography variant="caption" color="success.main" fontWeight={600}>↗ +5.2%</Typography>
+                            <Typography variant="h4" fontWeight={700}>{connectionStats.totalReceived.toLocaleString()}</Typography>
+                            <Typography
+                                variant="caption"
+                                fontWeight={600}
+                                color={connectionStats.trend === 'up' ? 'success.main' : connectionStats.trend === 'down' ? 'error.main' : 'text.secondary'}
+                            >
+                                {connectionStats.trend === 'up' ? '↗' : connectionStats.trend === 'down' ? '↘' : '→'}{' '}
+                                {connectionStats.percentageChange > 0 ? '+' : ''}{connectionStats.percentageChange}%
+                            </Typography>
                         </Paper>
 
                         <Paper sx={{ p: 3, borderRadius: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -145,9 +185,15 @@ export default function DashboardPage() {
                                 <Typography variant="body2" color="text.secondary">Shortlisted By</Typography>
                                 <Typography sx={{ bgcolor: 'background.default', px: 1, borderRadius: 1 }}>⭐</Typography>
                             </Box>
-                            <Typography variant="h4" fontWeight={700}>{stats.shortlistedBy}</Typography>
-                            {/* Removed static trend for now, or keep it as placeholder */}
-                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Users shortlisted you</Typography>
+                            <Typography variant="h4" fontWeight={700}>{stats.shortlistedBy.toLocaleString()}</Typography>
+                            <Typography
+                                variant="caption"
+                                fontWeight={600}
+                                color={stats.trend === 'up' ? 'success.main' : stats.trend === 'down' ? 'error.main' : 'text.secondary'}
+                            >
+                                {stats.trend === 'up' ? '↗' : stats.trend === 'down' ? '↘' : '→'}{' '}
+                                {stats.percentageChange > 0 ? '+' : ''}{stats.percentageChange}%
+                            </Typography>
                         </Paper>
                         <Paper sx={{ p: 3, borderRadius: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
