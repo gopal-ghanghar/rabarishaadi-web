@@ -175,7 +175,7 @@ export default function ConnectionsPage() {
                             >
                                 {profile.profilePicture ? (
                                     <img
-                                        src={`${API_URL}/uploads/${profile.profilePicture}`}
+                                        src={`${API_URL.replace('/api', '')}/uploads/${profile.profilePicture}`}
                                         alt={profile.firstName}
                                         style={{
                                             position: 'absolute',
