@@ -14,47 +14,70 @@ import {
     Alert,
     CircularProgress,
     MenuItem,
-    FormControl,
-    FormLabel,
-    RadioGroup,
     FormControlLabel,
-    Radio,
     Checkbox,
-    Container,
     Stack,
     Divider,
-    Grid,
     IconButton,
-    Avatar
+    Avatar,
+    Tabs,
+    Tab,
+    Chip
 } from '@mui/material';
-import { Edit as EditIcon, Save as SaveIcon, Close as CloseIcon, ArrowBack as ArrowBackIcon, CameraAlt, Visibility } from '@mui/icons-material';
+import {
+    Edit as EditIcon,
+    Save as SaveIcon,
+    Close as CloseIcon,
+    CameraAlt,
+    Visibility,
+    LocationOn,
+    Person,
+    Man,
+    Woman,
+    Add as AddIcon,
+    School,
+    Work
+} from '@mui/icons-material';
 import ImageUploadModal from '@/components/profile/ImageUploadModal';
+import ImageGallery from '@/components/profile/ImageGallery';
 import { State, City } from 'country-state-city';
 import { API_URL } from '@/lib/api';
+
+// ─── About Tab Section Definitions ───
+const ABOUT_SECTIONS = [
+    { key: 'basic', label: 'Basic Info' },
+    { key: 'location', label: 'Location & Community' },
+    { key: 'personal', label: 'Personal & Lifestyle' },
+    { key: 'education', label: 'Education & Income' },
+    { key: 'work', label: 'Work Details' },
+] as const;
+
+type AboutSectionKey = typeof ABOUT_SECTIONS[number]['key'];
 
 export default function ProfilePage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [profileData, setProfileData] = useState<any>(null);
-
-    // Form state for editing
     const [formData, setFormData] = useState<any>({});
+
+    // Tabs
+    const [activeTab, setActiveTab] = useState(0); // 0=All, 1=About, 2=Photos
+
+    // About tab state
+    const [aboutSection, setAboutSection] = useState<AboutSectionKey>('basic');
+    const [editingSection, setEditingSection] = useState<AboutSectionKey | null>(null);
 
     const [showUploadModal, setShowUploadModal] = useState(false);
 
-    useEffect(() => {
-        loadProfile();
-    }, []);
+    useEffect(() => { loadProfile(); }, []);
 
     const loadProfile = async () => {
         try {
             const data = await fetchApi('/profile/me');
             setProfileData(data);
-            // Initialize form data
             setFormData({
                 firstName: data.firstName || '',
                 lastName: data.lastName || '',
@@ -95,39 +118,19 @@ export default function ProfilePage() {
 
     const handleUploadSuccess = (fileName: string) => {
         setProfileData((prev: any) => ({ ...prev, profilePicture: fileName }));
-        // Also refresh user in auth store if needed, but for now just update local state
-        loadProfile(); // Reload to get everything synced
+        loadProfile();
     };
+
+    const handleGalleryChange = () => loadProfile();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
-        setFormData((prev: any) => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        setFormData((prev: any) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
-    const validate = () => {
-        if (!formData.firstName || !formData.lastName || !formData.gender || !formData.dob) return 'Basic details are missing.';
-        if (!formData.country || !formData.state || !formData.city) return 'Location details are missing.';
-        if (!formData.religion || !formData.community) return 'Community details are missing.';
-        if (!formData.height || !formData.maritalStatus || !formData.diet) return 'Personal details are missing.';
-        if (!formData.highestQualification || !formData.incomeRange) return 'Education/Income details are missing.';
-        if (!formData.workWith || !formData.workAs) return 'Work details are missing.';
-        return null;
-    };
-
-    const handleSubmit = async () => {
+    const handleSaveSection = async () => {
         setError('');
         setSuccess('');
-
-        const validationError = validate();
-        if (validationError) {
-            setError(validationError);
-            window.scrollTo(0, 0);
-            return;
-        }
-
         setSaving(true);
 
         const payload = {
@@ -141,10 +144,9 @@ export default function ProfilePage() {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });
-            setProfileData(updatedProfile); // Update view with returned data
-            setSuccess('Profile updated successfully!');
-            setIsEditing(false); // Switch back to view mode
-            window.scrollTo(0, 0);
+            setProfileData(updatedProfile);
+            setSuccess('Section updated successfully!');
+            setEditingSection(null);
         } catch (err: any) {
             setError(err.message || 'Update failed');
         } finally {
@@ -152,7 +154,7 @@ export default function ProfilePage() {
         }
     };
 
-    // Generate height options
+    // Height options
     const heightOptions: { val: number; label: string }[] = [];
     for (let c = 134; c <= 213; c++) {
         const realFeet = c * 0.0328084;
@@ -160,6 +162,12 @@ export default function ProfilePage() {
         const inches = Math.round((realFeet - feet) * 12);
         heightOptions.push({ val: c, label: `${feet}ft ${inches}in - ${c}cm` });
     }
+
+    const getImageUrl = (url: string) => {
+        if (!url) return undefined;
+        if (url.startsWith('http')) return url;
+        return `${API_URL.replace('/api', '')}/uploads/${url}`;
+    };
 
     if (loading) return (
         <DashboardLayout>
@@ -169,324 +177,444 @@ export default function ProfilePage() {
 
     if (!profileData) return (
         <DashboardLayout>
-            <Alert severity="error" sx={{ m: 4 }}>
-                {error || 'Failed to load profile data.'}
-            </Alert>
+            <Alert severity="error" sx={{ m: 4 }}>{error || 'Failed to load profile data.'}</Alert>
         </DashboardLayout>
     );
 
+    // ─── RENDER ───
     return (
         <DashboardLayout>
             <ImageUploadModal open={showUploadModal} onClose={() => setShowUploadModal(false)} onUploadSuccess={handleUploadSuccess} />
-            <Box sx={{ mb: 4 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {isEditing && (
-                            <IconButton onClick={() => setIsEditing(false)} sx={{ mr: 1 }}>
-                                <ArrowBackIcon />
-                            </IconButton>
-                        )}
-                        <Typography variant="h4" fontWeight={700}>
-                            {isEditing ? 'Edit Profile' : 'My Profile'}
-                        </Typography>
-                    </Box>
-                    {!isEditing && (
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Button
-                                variant="outlined"
-                                startIcon={<Visibility />}
-                                component={Link}
-                                href={`/profile/${profileData.id}`}
-                            >
-                                View as Public
-                            </Button>
-                            <Button
-                                variant="contained"
-                                startIcon={<EditIcon />}
-                                onClick={() => setIsEditing(true)}
-                            >
-                                Edit Profile
-                            </Button>
-                        </Box>
-                    )}
-                </Stack>
+            <Box sx={{ pb: 4 }}>
+                {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+                {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
-                {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-                {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
-
-                <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                    {/* Profile Picture Section */}
-                    {!isEditing && (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+                {/* ═══ HERO SECTION ═══ */}
+                <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', overflow: 'hidden', mb: 0 }}>
+                    <Box sx={{ px: { xs: 2, md: 4 }, py: 3 }}>
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="center">
+                            {/* Avatar */}
                             <Box sx={{ position: 'relative' }}>
                                 <Avatar
-                                    src={profileData.profilePicture ? `${API_URL.replace('/api', '')}/uploads/${profileData.profilePicture}` : undefined}
-                                    sx={{ width: 150, height: 150, borderRadius: 4, bgcolor: 'primary.main', fontSize: '3rem' }}
-                                    variant="rounded"
+                                    src={getImageUrl(profileData.profilePicture)}
+                                    sx={{
+                                        width: { xs: 120, md: 150 },
+                                        height: { xs: 120, md: 150 },
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        bgcolor: 'grey.200',
+                                        color: 'grey.400',
+                                        fontSize: '3rem',
+                                    }}
                                 >
-                                    {profileData.firstName?.charAt(0)}
+                                    {profileData.profilePicture ? null : (
+                                        profileData.gender === 'MALE' ? <Man sx={{ fontSize: 80 }} /> :
+                                            profileData.gender === 'FEMALE' ? <Woman sx={{ fontSize: 80 }} /> :
+                                                <Person sx={{ fontSize: 80 }} />
+                                    )}
                                 </Avatar>
                                 <IconButton
-                                    sx={{ position: 'absolute', bottom: -10, right: -10, bgcolor: 'background.paper', boxShadow: 1, '&:hover': { bgcolor: 'grey.100' } }}
                                     onClick={() => setShowUploadModal(true)}
+                                    sx={{
+                                        position: 'absolute',
+                                        bottom: 4, right: 4,
+                                        bgcolor: 'primary.main',
+                                        color: 'white',
+                                        width: 36, height: 36,
+                                        boxShadow: 2,
+                                        '&:hover': { bgcolor: 'primary.dark' }
+                                    }}
                                 >
-                                    <CameraAlt color="primary" />
+                                    <CameraAlt sx={{ fontSize: 18 }} />
                                 </IconButton>
                             </Box>
-                        </Box>
-                    )}
-                    {isEditing ? (
-                        // EDIT FORM
-                        <Stack spacing={4}>
-                            {/* Basic Info */}
-                            <Box>
-                                <Typography variant="h6" gutterBottom color="primary">Basic Information</Typography>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                                    <TextField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} fullWidth required />
-                                    <TextField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} fullWidth required />
-                                    <TextField select label="Gender" name="gender" value={formData.gender} onChange={handleChange} fullWidth required>
-                                        <MenuItem value="MALE">Male</MenuItem>
-                                        <MenuItem value="FEMALE">Female</MenuItem>
-                                        <MenuItem value="OTHER">Other</MenuItem>
-                                    </TextField>
-                                    <TextField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} required />
-                                </Box>
+
+                            {/* Name + Location */}
+                            <Box sx={{ flexGrow: 1, textAlign: { xs: 'center', md: 'left' }, mb: { xs: 1, md: 0 } }}>
+                                <Typography variant="h4" fontWeight={700}>
+                                    {profileData.firstName} {profileData.lastName}
+                                </Typography>
+                                <Stack direction="column" spacing={1} alignItems={{ xs: 'center', md: 'flex-start' }} sx={{ mt: 1 }}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <LocationOn fontSize="small" color="action" />
+                                        <Typography variant="body2" color="text.secondary">
+                                            {[profileData.city, profileData.state, profileData.country].filter(Boolean).join(', ') || 'Location not set'}
+                                        </Typography>
+                                    </Stack>
+                                    {(profileData.collegeName || profileData.education || profileData.highestQualification) && (
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <School fontSize="small" color="action" />
+                                            <Typography variant="body2" color="text.secondary">
+                                                {profileData.collegeName || profileData.education || profileData.highestQualification}
+                                            </Typography>
+                                        </Stack>
+                                    )}
+                                    {profileData.occupation && (
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            <Work fontSize="small" color="action" />
+                                            <Typography variant="body2" color="text.secondary">
+                                                {profileData.occupation || profileData.workAs}
+                                            </Typography>
+                                        </Stack>
+                                    )}
+                                </Stack>
                             </Box>
 
-                            <Divider />
-
-                            {/* Location & Community */}
-                            <Box>
-                                <Typography variant="h6" gutterBottom color="primary">Location & Community</Typography>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                                    <TextField label="Religion" name="religion" value={formData.religion} onChange={handleChange} fullWidth required />
-                                    <TextField label="Community" name="community" value={formData.community} onChange={handleChange} fullWidth required />
-                                    <TextField label="Sub Caste" name="subCaste" value={formData.subCaste} onChange={handleChange} fullWidth />
-                                    <TextField label="Gotra" name="gotra" value={formData.gotra} onChange={handleChange} fullWidth />
-                                    <TextField label="Native Place" name="nativePlace" value={formData.nativePlace} onChange={handleChange} fullWidth />
-
-                                    <TextField select label="Country" name="country" value={formData.country} onChange={handleChange} fullWidth required>
-                                        <MenuItem value="India">India</MenuItem>
-                                    </TextField>
-                                    <TextField
-                                        select
-                                        label="State"
-                                        name="state"
-                                        value={formData.state}
-                                        onChange={(e) => {
-                                            handleChange(e as any);
-                                            setFormData((prev: any) => ({ ...prev, city: '' }));
-                                        }}
-                                        fullWidth
-                                        required
-                                    >
-                                        {State.getStatesOfCountry('IN').map((state) => (
-                                            <MenuItem key={state.isoCode} value={state.name}>
-                                                {state.name}
-                                            </MenuItem>
-                                        ))}
-                                    </TextField>
-                                    <TextField
-                                        select
-                                        label="City"
-                                        name="city"
-                                        value={formData.city}
-                                        onChange={handleChange}
-                                        fullWidth
-                                        required
-                                        disabled={!formData.state}
-                                    >
-                                        {(() => {
-                                            const states = State.getStatesOfCountry('IN');
-                                            const selectedState = states.find(s => s.name === formData.state);
-                                            const cities = selectedState ? City.getCitiesOfState('IN', selectedState.isoCode) : [];
-
-                                            if (cities.length > 0) {
-                                                return cities.map((city) => (
-                                                    <MenuItem key={city.name} value={city.name}>
-                                                        {city.name}
-                                                    </MenuItem>
-                                                ));
-                                            }
-                                            return <MenuItem value="" disabled>Select a State first</MenuItem>;
-                                        })()}
-                                    </TextField>
-                                </Box>
-                            </Box>
-
-                            <Divider />
-
-                            {/* Personal & Lifestyle */}
-                            <Box>
-                                <Typography variant="h6" gutterBottom color="primary">Personal & Lifestyle</Typography>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                                    <TextField
-                                        select
-                                        label="Height"
-                                        name="height"
-                                        value={formData.height}
-                                        onChange={handleChange}
-                                        fullWidth
-                                        required
-                                    >
-                                        {heightOptions.map(h => (
-                                            <MenuItem key={h.val} value={h.val}>{h.label}</MenuItem>
-                                        ))}
-                                    </TextField>
-                                    <TextField select label="Marital Status" name="maritalStatus" value={formData.maritalStatus} onChange={handleChange} fullWidth required>
-                                        <MenuItem value="NEVER_MARRIED">Never Married</MenuItem>
-                                        <MenuItem value="DIVORCED">Divorced</MenuItem>
-                                        <MenuItem value="WIDOWED">Widowed</MenuItem>
-                                        <MenuItem value="AWAITING_DIVORCE">Awaiting Divorce</MenuItem>
-                                        <MenuItem value="ANNULLED">Annulled</MenuItem>
-                                    </TextField>
-
-                                    <TextField select label="Diet" name="diet" value={formData.diet} onChange={handleChange} fullWidth required>
-                                        <MenuItem value="VEG">Veg</MenuItem>
-                                        <MenuItem value="NON_VEG">Non-Veg</MenuItem>
-                                        <MenuItem value="OCCASIONALLY_NON_VEG">Occasionally Non-Veg</MenuItem>
-                                        <MenuItem value="EGGETARIAN">Eggetarian</MenuItem>
-                                        <MenuItem value="JAIN">Jain</MenuItem>
-                                        <MenuItem value="VEGAN">Vegan</MenuItem>
-                                    </TextField>
-
-                                    <FormControlLabel
-                                        control={<Checkbox checked={formData.liveWithFamily} onChange={handleChange} name="liveWithFamily" />}
-                                        label="Live with Family"
-                                    />
-                                </Box>
-                                <TextField
-                                    label="Bio"
-                                    name="bio"
-                                    multiline
-                                    rows={4}
-                                    value={formData.bio}
-                                    onChange={handleChange}
-                                    fullWidth
-                                    sx={{ mt: 2 }}
-                                    placeholder="Tell us about yourself..."
-                                />
-                            </Box>
-
-                            <Divider />
-
-                            {/* Education & Profession */}
-                            <Box>
-                                <Typography variant="h6" gutterBottom color="primary">Education & Profession</Typography>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                                    <TextField label="Highest Qualification" name="highestQualification" value={formData.highestQualification} onChange={handleChange} fullWidth required />
-                                    <TextField label="College Name" name="collegeName" value={formData.collegeName} onChange={handleChange} fullWidth />
-
-                                    <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <TextField select label="Type" name="incomeType" value={formData.incomeType} onChange={handleChange} sx={{ minWidth: 100 }}>
-                                            <MenuItem value="MONTHLY">Monthly</MenuItem>
-                                            <MenuItem value="YEARLY">Yearly</MenuItem>
-                                        </TextField>
-                                        <TextField select label="Range" name="incomeRange" value={formData.incomeRange} onChange={handleChange} fullWidth required>
-                                            <MenuItem value="0-3 LPA">0-3 LPA / &lt; 25k PM</MenuItem>
-                                            <MenuItem value="3-5 LPA">3-5 LPA / 25k-40k PM</MenuItem>
-                                            <MenuItem value="5-8 LPA">5-8 LPA / 40k-65k PM</MenuItem>
-                                            <MenuItem value="8-12 LPA">8-12 LPA / 65k-1L PM</MenuItem>
-                                            <MenuItem value="12-20 LPA">12-20 LPA / 1L-1.6L PM</MenuItem>
-                                            <MenuItem value="20+ LPA">20+ LPA / 1.6L+ PM</MenuItem>
-                                        </TextField>
-                                    </Box>
-                                </Box>
-                            </Box>
-
-                            <Divider />
-
-                            {/* Work Details */}
-                            <Box>
-                                <Typography variant="h6" gutterBottom color="primary">Work Details</Typography>
-                                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                                    <TextField select label="Work With" name="workWith" value={formData.workWith} onChange={handleChange} fullWidth required>
-                                        <MenuItem value="PRIVATE_COMPANY">Private Company</MenuItem>
-                                        <MenuItem value="GOVERNMENT_JOB">Government Job</MenuItem>
-                                        <MenuItem value="BUSINESS">Business</MenuItem>
-                                        <MenuItem value="SELF_EMPLOYED">Self Employed</MenuItem>
-                                        <MenuItem value="STUDENT">Student</MenuItem>
-                                        <MenuItem value="NOT_WORKING">Not Working</MenuItem>
-                                    </TextField>
-                                    <TextField label="Work As (Designation)" name="workAs" value={formData.workAs} onChange={handleChange} fullWidth required />
-                                    <TextField label="Work At (Company/Dept)" name="workAt" value={formData.workAt} onChange={handleChange} fullWidth placeholder="Optional" />
-                                </Box>
-                            </Box>
-
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
-                                <Button variant="outlined" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                <Button variant="contained" onClick={handleSubmit} disabled={saving} size="large" startIcon={<SaveIcon />}>
-                                    {saving ? 'Saving...' : 'Save Changes'}
+                            {/* Action Buttons */}
+                            <Stack direction="row" spacing={1.5} sx={{ mb: { xs: 0, md: 1 } }}>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<EditIcon />}
+                                    onClick={() => {
+                                        setActiveTab(1); // Switch to About tab
+                                        setEditingSection('basic'); // Open editing form directly
+                                    }}
+                                    sx={{ borderRadius: 2, textTransform: 'none' }}
+                                >
+                                    Edit Profile
                                 </Button>
-                            </Box>
+                                <Button
+                                    variant="contained"
+                                    color="inherit"
+                                    startIcon={<Visibility />}
+                                    component={Link}
+                                    href={`/profile/${profileData.id}`}
+                                    sx={{ borderRadius: 2, textTransform: 'none', bgcolor: 'grey.200', color: 'grey.800', '&:hover': { bgcolor: 'grey.300' } }}
+                                >
+                                    View As
+                                </Button>
+                            </Stack>
                         </Stack>
-                    ) : (
-                        // VIEW MODE
-                        <Stack spacing={4}>
-                            {/* Basic Info */}
-                            <SectionView title="Basic Information">
-                                <InfoItem label="Full Name" value={`${profileData.firstName} ${profileData.lastName}`} />
-                                <InfoItem label="Email" value={profileData.email} />
-                                <InfoItem label="Phone" value={profileData.phone} />
-                                <InfoItem label="Gender" value={profileData.gender} />
-                                <InfoItem label="Date of Birth" value={profileData.dob} />
-                                <InfoItem label="Marital Status" value={profileData.maritalStatus?.replace('_', ' ')} />
-                            </SectionView>
+                    </Box>
 
-                            <Divider />
+                    {/* ═══ TABS BAR ═══ */}
+                    <Box sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+                        <Tabs
+                            value={activeTab}
+                            onChange={(_, v) => setActiveTab(v)}
+                            sx={{ px: { xs: 2, md: 4 }, minHeight: 48 }}
+                        >
+                            <Tab label="All" sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+                            <Tab label="About" sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+                            <Tab label="Photos" sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+                        </Tabs>
+                    </Box>
+                </Paper>
 
-                            <SectionView title="Location & Community">
-                                <InfoItem label="Location" value={`${profileData.city}, ${profileData.state}, ${profileData.country}`} />
-                                <InfoItem label="Religion" value={profileData.religion} />
-                                <InfoItem label="Community" value={profileData.community} />
-                                <InfoItem label="Sub Caste" value={profileData.subCaste} />
-                                <InfoItem label="Gotra" value={profileData.gotra} />
-                                <InfoItem label="Native Place" value={profileData.nativePlace} />
-                            </SectionView>
+                {/* ═══ TAB CONTENT ═══ */}
+                <Box sx={{ mt: 2 }}>
+                    {/* ─── ALL TAB ─── */}
+                    {activeTab === 0 && (
+                        <Paper elevation={0} sx={{ p: { xs: 2, md: 4 }, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                            <Stack spacing={4}>
+                                <ReadOnlySection title="Basic Information">
+                                    <InfoItem label="Full Name" value={`${profileData.firstName} ${profileData.lastName}`} />
+                                    <InfoItem label="Email" value={profileData.email} />
+                                    <InfoItem label="Phone" value={profileData.phone} />
+                                    <InfoItem label="Gender" value={profileData.gender} />
+                                    <InfoItem label="Date of Birth" value={profileData.dob} />
+                                    <InfoItem label="Marital Status" value={profileData.maritalStatus?.replace(/_/g, ' ')} />
+                                </ReadOnlySection>
 
-                            <Divider />
+                                <Divider />
 
-                            <SectionView title="Education & Profession">
-                                <InfoItem label="Highest Qualification" value={profileData.highestQualification} />
-                                <InfoItem label="College" value={profileData.collegeName} />
-                                <InfoItem label="Occupation" value={profileData.occupation || profileData.workAs} />
-                                <InfoItem label="Employed In" value={profileData.workWith?.replace('_', ' ')} />
-                                <InfoItem label="Works At" value={profileData.workAt} />
-                                <InfoItem label="Income" value={`${profileData.incomeRange} (${profileData.incomeType})`} />
-                            </SectionView>
+                                <ReadOnlySection title="Location & Community">
+                                    <InfoItem label="Location" value={[profileData.city, profileData.state, profileData.country].filter(Boolean).join(', ')} />
+                                    <InfoItem label="Religion" value={profileData.religion} />
+                                    <InfoItem label="Community" value={profileData.community} />
+                                    <InfoItem label="Sub Caste" value={profileData.subCaste} />
+                                    <InfoItem label="Gotra" value={profileData.gotra} />
+                                    <InfoItem label="Native Place" value={profileData.nativePlace} />
+                                </ReadOnlySection>
 
-                            <Divider />
+                                <Divider />
 
-                            <SectionView title="Lifestyle">
-                                <InfoItem label="Diet" value={profileData.diet} />
-                                <InfoItem label="Height" value={`${profileData.height} cm`} />
-                                <InfoItem label="Living with Family" value={profileData.liveWithFamily ? 'Yes' : 'No'} />
-                            </SectionView>
+                                <ReadOnlySection title="Education & Profession">
+                                    <InfoItem label="Highest Qualification" value={profileData.highestQualification} />
+                                    <InfoItem label="College" value={profileData.collegeName} />
+                                    <InfoItem label="Occupation" value={profileData.occupation || profileData.workAs} />
+                                    <InfoItem label="Employed In" value={profileData.workWith?.replace(/_/g, ' ')} />
+                                    <InfoItem label="Works At" value={profileData.workAt} />
+                                    <InfoItem label="Income" value={profileData.incomeRange ? `${profileData.incomeRange} (${profileData.incomeType})` : null} />
+                                </ReadOnlySection>
 
-                            {profileData.bio && (
-                                <>
-                                    <Divider />
-                                    <Box>
-                                        <Typography variant="h6" gutterBottom color="primary">About Me</Typography>
-                                        <Typography variant="body1" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>{profileData.bio}</Typography>
+                                <Divider />
+
+                                <ReadOnlySection title="Lifestyle">
+                                    <InfoItem label="Diet" value={profileData.diet?.replace(/_/g, ' ')} />
+                                    <InfoItem label="Height" value={profileData.height ? `${profileData.height} cm` : null} />
+                                    <InfoItem label="Living with Family" value={profileData.liveWithFamily !== null ? (profileData.liveWithFamily ? 'Yes' : 'No') : null} />
+                                </ReadOnlySection>
+
+                                {profileData.bio && (
+                                    <>
+                                        <Divider />
+                                        <Box>
+                                            <Typography variant="h6" gutterBottom color="primary">About Me</Typography>
+                                            <Typography variant="body1" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>{profileData.bio}</Typography>
+                                        </Box>
+                                    </>
+                                )}
+                            </Stack>
+                        </Paper>
+                    )}
+
+                    {/* ─── ABOUT TAB ─── */}
+                    {activeTab === 1 && (
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                            {/* Left sidebar nav */}
+                            <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', minWidth: { md: 220 }, p: 1 }}>
+                                <Typography variant="subtitle2" fontWeight={700} sx={{ px: 2, py: 1.5, color: 'text.secondary' }}>About</Typography>
+                                {ABOUT_SECTIONS.map(s => (
+                                    <Box
+                                        key={s.key}
+                                        onClick={() => { setAboutSection(s.key); setEditingSection(null); }}
+                                        sx={{
+                                            px: 2, py: 1, borderRadius: 2, cursor: 'pointer',
+                                            bgcolor: aboutSection === s.key ? 'action.selected' : 'transparent',
+                                            color: aboutSection === s.key ? 'primary.main' : 'text.primary',
+                                            fontWeight: aboutSection === s.key ? 600 : 400,
+                                            '&:hover': { bgcolor: 'action.hover' },
+                                            fontSize: '0.9rem',
+                                            transition: 'all 0.15s',
+                                        }}
+                                    >
+                                        {s.label}
                                     </Box>
-                                </>
-                            )}
+                                ))}
+                            </Paper>
+
+                            {/* Right content */}
+                            <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', p: { xs: 2, md: 4 }, flexGrow: 1 }}>
+                                {aboutSection === 'basic' && (
+                                    editingSection === 'basic' ? (
+                                        <EditSection title="Basic Information" onSave={handleSaveSection} onCancel={() => setEditingSection(null)} saving={saving}>
+                                            <TextField label="First Name" name="firstName" value={formData.firstName} onChange={handleChange} fullWidth required />
+                                            <TextField label="Last Name" name="lastName" value={formData.lastName} onChange={handleChange} fullWidth required />
+                                            <TextField select label="Gender" name="gender" value={formData.gender} onChange={handleChange} fullWidth required>
+                                                <MenuItem value="MALE">Male</MenuItem>
+                                                <MenuItem value="FEMALE">Female</MenuItem>
+                                                <MenuItem value="OTHER">Other</MenuItem>
+                                            </TextField>
+                                            <TextField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} required />
+                                            <TextField select label="Marital Status" name="maritalStatus" value={formData.maritalStatus} onChange={handleChange} fullWidth required>
+                                                <MenuItem value="NEVER_MARRIED">Never Married</MenuItem>
+                                                <MenuItem value="DIVORCED">Divorced</MenuItem>
+                                                <MenuItem value="WIDOWED">Widowed</MenuItem>
+                                                <MenuItem value="AWAITING_DIVORCE">Awaiting Divorce</MenuItem>
+                                                <MenuItem value="ANNULLED">Annulled</MenuItem>
+                                            </TextField>
+                                        </EditSection>
+                                    ) : (
+                                        <ViewSection title="Basic Information" onEdit={() => setEditingSection('basic')}>
+                                            <InfoItem label="Full Name" value={`${profileData.firstName} ${profileData.lastName}`} />
+                                            <InfoItem label="Email" value={profileData.email} />
+                                            <InfoItem label="Phone" value={profileData.phone} />
+                                            <InfoItem label="Gender" value={profileData.gender} />
+                                            <InfoItem label="Date of Birth" value={profileData.dob} />
+                                            <InfoItem label="Marital Status" value={profileData.maritalStatus?.replace(/_/g, ' ')} />
+                                        </ViewSection>
+                                    )
+                                )}
+
+                                {aboutSection === 'location' && (
+                                    editingSection === 'location' ? (
+                                        <EditSection title="Location & Community" onSave={handleSaveSection} onCancel={() => setEditingSection(null)} saving={saving}>
+                                            <TextField label="Religion" name="religion" value={formData.religion} onChange={handleChange} fullWidth required />
+                                            <TextField label="Community" name="community" value={formData.community} onChange={handleChange} fullWidth required />
+                                            <TextField label="Sub Caste" name="subCaste" value={formData.subCaste} onChange={handleChange} fullWidth />
+                                            <TextField label="Gotra" name="gotra" value={formData.gotra} onChange={handleChange} fullWidth />
+                                            <TextField label="Native Place" name="nativePlace" value={formData.nativePlace} onChange={handleChange} fullWidth />
+                                            <TextField select label="Country" name="country" value={formData.country} onChange={handleChange} fullWidth required>
+                                                <MenuItem value="India">India</MenuItem>
+                                            </TextField>
+                                            <TextField
+                                                select label="State" name="state" value={formData.state}
+                                                onChange={(e) => {
+                                                    handleChange(e as any);
+                                                    setFormData((prev: any) => ({ ...prev, city: '' }));
+                                                }}
+                                                fullWidth required
+                                            >
+                                                {State.getStatesOfCountry('IN').map((state) => (
+                                                    <MenuItem key={state.isoCode} value={state.name}>{state.name}</MenuItem>
+                                                ))}
+                                            </TextField>
+                                            <TextField
+                                                select label="City" name="city" value={formData.city}
+                                                onChange={handleChange} fullWidth required disabled={!formData.state}
+                                            >
+                                                {(() => {
+                                                    const states = State.getStatesOfCountry('IN');
+                                                    const selectedState = states.find(s => s.name === formData.state);
+                                                    const cities = selectedState ? City.getCitiesOfState('IN', selectedState.isoCode) : [];
+                                                    if (cities.length > 0) return cities.map(city => <MenuItem key={city.name} value={city.name}>{city.name}</MenuItem>);
+                                                    return <MenuItem value="" disabled>Select a State first</MenuItem>;
+                                                })()}
+                                            </TextField>
+                                        </EditSection>
+                                    ) : (
+                                        <ViewSection title="Location & Community" onEdit={() => setEditingSection('location')}>
+                                            <InfoItem label="Location" value={[profileData.city, profileData.state, profileData.country].filter(Boolean).join(', ')} />
+                                            <InfoItem label="Religion" value={profileData.religion} />
+                                            <InfoItem label="Community" value={profileData.community} />
+                                            <InfoItem label="Sub Caste" value={profileData.subCaste} />
+                                            <InfoItem label="Gotra" value={profileData.gotra} />
+                                            <InfoItem label="Native Place" value={profileData.nativePlace} />
+                                        </ViewSection>
+                                    )
+                                )}
+
+                                {aboutSection === 'personal' && (
+                                    editingSection === 'personal' ? (
+                                        <EditSection title="Personal & Lifestyle" onSave={handleSaveSection} onCancel={() => setEditingSection(null)} saving={saving}>
+                                            <TextField select label="Height" name="height" value={formData.height} onChange={handleChange} fullWidth required>
+                                                {heightOptions.map(h => <MenuItem key={h.val} value={h.val}>{h.label}</MenuItem>)}
+                                            </TextField>
+                                            <TextField select label="Diet" name="diet" value={formData.diet} onChange={handleChange} fullWidth required>
+                                                <MenuItem value="VEG">Veg</MenuItem>
+                                                <MenuItem value="NON_VEG">Non-Veg</MenuItem>
+                                                <MenuItem value="OCCASIONALLY_NON_VEG">Occasionally Non-Veg</MenuItem>
+                                                <MenuItem value="EGGETARIAN">Eggetarian</MenuItem>
+                                                <MenuItem value="JAIN">Jain</MenuItem>
+                                                <MenuItem value="VEGAN">Vegan</MenuItem>
+                                            </TextField>
+                                            <FormControlLabel
+                                                control={<Checkbox checked={formData.liveWithFamily} onChange={handleChange} name="liveWithFamily" />}
+                                                label="Live with Family"
+                                            />
+                                            <TextField label="Bio" name="bio" multiline rows={4} value={formData.bio} onChange={handleChange} fullWidth placeholder="Tell us about yourself..." sx={{ gridColumn: '1 / -1' }} />
+                                        </EditSection>
+                                    ) : (
+                                        <ViewSection title="Personal & Lifestyle" onEdit={() => setEditingSection('personal')}>
+                                            <InfoItem label="Diet" value={profileData.diet?.replace(/_/g, ' ')} />
+                                            <InfoItem label="Height" value={profileData.height ? `${profileData.height} cm` : null} />
+                                            <InfoItem label="Living with Family" value={profileData.liveWithFamily !== null ? (profileData.liveWithFamily ? 'Yes' : 'No') : null} />
+                                            {profileData.bio && (
+                                                <Box sx={{ gridColumn: '1 / -1' }}>
+                                                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Bio</Typography>
+                                                    <Typography variant="body1" fontWeight={500} sx={{ whiteSpace: 'pre-wrap' }}>{profileData.bio}</Typography>
+                                                </Box>
+                                            )}
+                                        </ViewSection>
+                                    )
+                                )}
+
+                                {aboutSection === 'education' && (
+                                    editingSection === 'education' ? (
+                                        <EditSection title="Education & Income" onSave={handleSaveSection} onCancel={() => setEditingSection(null)} saving={saving}>
+                                            <TextField label="Highest Qualification" name="highestQualification" value={formData.highestQualification} onChange={handleChange} fullWidth required />
+                                            <TextField label="College Name" name="collegeName" value={formData.collegeName} onChange={handleChange} fullWidth />
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                <TextField select label="Type" name="incomeType" value={formData.incomeType} onChange={handleChange} sx={{ minWidth: 100 }}>
+                                                    <MenuItem value="MONTHLY">Monthly</MenuItem>
+                                                    <MenuItem value="YEARLY">Yearly</MenuItem>
+                                                </TextField>
+                                                <TextField select label="Income Range" name="incomeRange" value={formData.incomeRange} onChange={handleChange} fullWidth required>
+                                                    <MenuItem value="0-3 LPA">0-3 LPA / &lt; 25k PM</MenuItem>
+                                                    <MenuItem value="3-5 LPA">3-5 LPA / 25k-40k PM</MenuItem>
+                                                    <MenuItem value="5-8 LPA">5-8 LPA / 40k-65k PM</MenuItem>
+                                                    <MenuItem value="8-12 LPA">8-12 LPA / 65k-1L PM</MenuItem>
+                                                    <MenuItem value="12-20 LPA">12-20 LPA / 1L-1.6L PM</MenuItem>
+                                                    <MenuItem value="20+ LPA">20+ LPA / 1.6L+ PM</MenuItem>
+                                                </TextField>
+                                            </Box>
+                                        </EditSection>
+                                    ) : (
+                                        <ViewSection title="Education & Income" onEdit={() => setEditingSection('education')}>
+                                            <InfoItem label="Highest Qualification" value={profileData.highestQualification} />
+                                            <InfoItem label="College" value={profileData.collegeName} />
+                                            <InfoItem label="Income" value={profileData.incomeRange ? `${profileData.incomeRange} (${profileData.incomeType})` : null} />
+                                        </ViewSection>
+                                    )
+                                )}
+
+                                {aboutSection === 'work' && (
+                                    editingSection === 'work' ? (
+                                        <EditSection title="Work Details" onSave={handleSaveSection} onCancel={() => setEditingSection(null)} saving={saving}>
+                                            <TextField select label="Work With" name="workWith" value={formData.workWith} onChange={handleChange} fullWidth required>
+                                                <MenuItem value="PRIVATE_COMPANY">Private Company</MenuItem>
+                                                <MenuItem value="GOVERNMENT_JOB">Government Job</MenuItem>
+                                                <MenuItem value="BUSINESS">Business</MenuItem>
+                                                <MenuItem value="SELF_EMPLOYED">Self Employed</MenuItem>
+                                                <MenuItem value="STUDENT">Student</MenuItem>
+                                                <MenuItem value="NOT_WORKING">Not Working</MenuItem>
+                                            </TextField>
+                                            <TextField label="Work As (Designation)" name="workAs" value={formData.workAs} onChange={handleChange} fullWidth required />
+                                            <TextField label="Work At (Company/Dept)" name="workAt" value={formData.workAt} onChange={handleChange} fullWidth placeholder="Optional" />
+                                        </EditSection>
+                                    ) : (
+                                        <ViewSection title="Work Details" onEdit={() => setEditingSection('work')}>
+                                            <InfoItem label="Occupation" value={profileData.occupation || profileData.workAs} />
+                                            <InfoItem label="Employed In" value={profileData.workWith?.replace(/_/g, ' ')} />
+                                            <InfoItem label="Works At" value={profileData.workAt} />
+                                        </ViewSection>
+                                    )
+                                )}
+                            </Paper>
                         </Stack>
                     )}
-                </Paper>
+
+                    {/* ─── PHOTOS TAB ─── */}
+                    {activeTab === 2 && (
+                        <Paper elevation={0} sx={{ p: { xs: 2, md: 4 }, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                            <ImageGallery
+                                photos={profileData.photos || []}
+                                onPhotosChange={handleGalleryChange}
+                                editable={true}
+                            />
+                        </Paper>
+                    )}
+                </Box>
             </Box>
         </DashboardLayout>
     );
 }
 
-function SectionView({ title, children }: { title: string; children: React.ReactNode }) {
+// ─── Reusable Sub-Components ───
+
+function ReadOnlySection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <Box>
             <Typography variant="h6" gutterBottom color="primary" sx={{ mb: 2 }}>{title}</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
                 {children}
             </Box>
+        </Box>
+    );
+}
+
+function ViewSection({ title, children, onEdit }: { title: string; children: React.ReactNode; onEdit: () => void }) {
+    return (
+        <Box>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" color="primary">{title}</Typography>
+                <IconButton onClick={onEdit} size="small" color="primary" title="Edit">
+                    <EditIcon fontSize="small" />
+                </IconButton>
+            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+                {children}
+            </Box>
+        </Box>
+    );
+}
+
+function EditSection({ title, children, onSave, onCancel, saving }: {
+    title: string; children: React.ReactNode; onSave: () => void; onCancel: () => void; saving: boolean;
+}) {
+    return (
+        <Box>
+            <Typography variant="h6" color="primary" gutterBottom>{title}</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                {children}
+            </Box>
+            <Stack direction="row" justifyContent="flex-end" spacing={1.5} sx={{ mt: 3 }}>
+                <Button variant="outlined" onClick={onCancel} startIcon={<CloseIcon />} size="small">Cancel</Button>
+                <Button variant="contained" onClick={onSave} disabled={saving} startIcon={<SaveIcon />} size="small">
+                    {saving ? 'Saving...' : 'Save'}
+                </Button>
+            </Stack>
         </Box>
     );
 }

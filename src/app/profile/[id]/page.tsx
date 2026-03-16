@@ -16,11 +16,30 @@ import {
     CircularProgress,
     Divider,
     AppBar,
-    Toolbar
+    Toolbar,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
+    IconButton
 } from '@mui/material';
-import { ArrowBack, LocationOn, Favorite, BookmarkBorder, Bookmark, Man, Woman, Person } from '@mui/icons-material';
+import {
+    ArrowBack,
+    Person,
+    Man,
+    Woman,
+    LocationOn,
+    School,
+    Work,
+    BookmarkBorder,
+    Bookmark,
+    MoreHoriz,
+    Flag,
+    Block
+} from '@mui/icons-material';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import ClientRouteGuard from '@/components/auth/ClientRouteGuard';
+import GalleryLightbox from '@/components/profile/GalleryLightbox';
 
 import ConnectButton from '@/components/common/ConnectButton';
 import { connectionService } from '@/lib/services/connection';
@@ -38,6 +57,12 @@ export default function ProfileDetailsPage() {
     const [error, setError] = useState('');
     const [isShortlisted, setIsShortlisted] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<{ status: string; requestId?: string; direction?: string }>({ status: 'NONE' });
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null);
+
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setMoreMenuAnchor(event.currentTarget);
+    const handleMenuClose = () => setMoreMenuAnchor(null);
 
     useEffect(() => {
         if (!id) return;
@@ -144,47 +169,66 @@ export default function ProfileDetailsPage() {
 
                         <Paper sx={{ borderRadius: 4, overflow: 'hidden' }}>
                             {/* Header Section */}
-                            <Box sx={{ bgcolor: 'primary.main', height: 150, position: 'relative' }}>
-                            </Box>
-                            <Box sx={{ px: 4, pb: 4, mt: -6 }}>
-                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems={{ xs: 'center', md: 'flex-end' }}>
+                            <Box sx={{ px: { xs: 2, md: 4 }, py: 3 }}>
+                                <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} alignItems="center">
                                     <Avatar
                                         src={profile.profilePicture ? `${API_URL.replace('/api', '')}/uploads/${profile.profilePicture}` : undefined}
                                         sx={{
-                                            width: 150,
-                                            height: 150,
-                                            border: '4px solid white',
+                                            width: { xs: 120, md: 150 },
+                                            height: { xs: 120, md: 150 },
+                                            border: '1px solid',
+                                            borderColor: 'divider',
                                             fontSize: '3rem',
                                             bgcolor: profile.profilePicture ? 'transparent' : 'grey.200',
                                             color: 'grey.400'
                                         }}
-                                        variant={profile.profilePicture ? 'circular' : 'circular'}
+                                        variant="circular"
                                     >
                                         {profile.profilePicture ? null : (
-                                            profile.gender === 'MALE' ? <Man sx={{ fontSize: 100 }} /> :
-                                                profile.gender === 'FEMALE' ? <Woman sx={{ fontSize: 100 }} /> :
-                                                    <Person sx={{ fontSize: 100 }} />
+                                            profile.gender === 'MALE' ? <Man sx={{ fontSize: 80 }} /> :
+                                                profile.gender === 'FEMALE' ? <Woman sx={{ fontSize: 80 }} /> :
+                                                    <Person sx={{ fontSize: 80 }} />
                                         )}
                                     </Avatar>
                                     <Box sx={{ flexGrow: 1, textAlign: { xs: 'center', md: 'left' }, mb: { xs: 2, md: 0 } }}>
                                         <Typography variant="h4" fontWeight={700}>
                                             {profile.firstName} {profile.lastName}
                                         </Typography>
-                                        <Typography color="text.secondary" variant="subtitle1" gutterBottom>
-                                            {profile.education} • {profile.occupation}
-                                        </Typography>
-                                        <Stack direction="row" spacing={1} justifyContent={{ xs: 'center', md: 'flex-start' }} alignItems="center">
-                                            <LocationOn fontSize="small" color="action" />
-                                            <Typography variant="body2">{profile.nativePlace || 'Location Not Specified'}</Typography>
+
+                                        <Stack direction="column" spacing={1} alignItems={{ xs: 'center', md: 'flex-start' }} sx={{ mt: 1 }}>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <LocationOn fontSize="small" color="action" />
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {[profile.city, profile.state, profile.country].filter(Boolean).join(', ') || 'Location not set'}
+                                                </Typography>
+                                            </Stack>
+                                            {(profile.collegeName || profile.education || profile.highestQualification) && (
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <School fontSize="small" color="action" />
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {profile.collegeName || profile.education || profile.highestQualification}
+                                                    </Typography>
+                                                </Stack>
+                                            )}
+                                            {(profile.occupation || profile.workAs) && (
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <Work fontSize="small" color="action" />
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {profile.occupation || profile.workAs}
+                                                    </Typography>
+                                                </Stack>
+                                            )}
                                         </Stack>
                                     </Box>
+
                                     {!isOwnProfile && from !== 'admin-users' && (
-                                        <Stack direction="row" spacing={2}>
+                                        <Stack direction="row" spacing={1.5} alignItems="center">
                                             <Button
                                                 variant={isShortlisted ? "contained" : "outlined"}
                                                 startIcon={isShortlisted ? <Bookmark /> : <BookmarkBorder />}
                                                 onClick={handleShortlistToggle}
                                                 color={isShortlisted ? "secondary" : "primary"}
+                                                sx={{ borderRadius: 2, textTransform: 'none' }}
                                             >
                                                 {isShortlisted ? 'Shortlisted' : 'Shortlist'}
                                             </Button>
@@ -194,10 +238,38 @@ export default function ProfileDetailsPage() {
                                                 initialRequestId={connectionStatus.requestId}
                                                 initialDirection={connectionStatus.direction}
                                                 onStatusChange={(status) => {
-                                                    // Optional: refresh page or updates state if needed
                                                     setConnectionStatus(prev => ({ ...prev, status }));
                                                 }}
                                             />
+                                            <IconButton
+                                                onClick={handleMenuOpen}
+                                                sx={{
+                                                    bgcolor: 'grey.200',
+                                                    borderRadius: 2,
+                                                    height: 36,
+                                                    width: 48,
+                                                    '&:hover': { bgcolor: 'grey.300' }
+                                                }}
+                                            >
+                                                <MoreHoriz />
+                                            </IconButton>
+                                            <Menu
+                                                anchorEl={moreMenuAnchor}
+                                                open={Boolean(moreMenuAnchor)}
+                                                onClose={handleMenuClose}
+                                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                                slotProps={{ paper: { sx: { borderRadius: 2, minWidth: 200, mt: 1, boxShadow: 4 } } }}
+                                            >
+                                                <MenuItem onClick={() => { handleMenuClose(); alert('Report feature coming soon'); }}>
+                                                    <ListItemIcon><Flag fontSize="small" /></ListItemIcon>
+                                                    <ListItemText>Report Profile</ListItemText>
+                                                </MenuItem>
+                                                <MenuItem onClick={() => { handleMenuClose(); alert('Block feature coming soon'); }} sx={{ color: 'error.main' }}>
+                                                    <ListItemIcon><Block fontSize="small" color="error" /></ListItemIcon>
+                                                    <ListItemText>Block</ListItemText>
+                                                </MenuItem>
+                                            </Menu>
                                         </Stack>
                                     )}
                                 </Stack>
@@ -269,6 +341,51 @@ export default function ProfileDetailsPage() {
                                 </Stack>
                             </Box>
                         </Paper>
+
+                        {/* Photo Gallery - Public View */}
+                        {profile.photos && profile.photos.length > 0 && (
+                            <Paper sx={{ borderRadius: 4, overflow: 'hidden', mt: 3, p: 4 }}>
+                                <Typography variant="h6" color="primary" gutterBottom sx={{ mb: 2 }}>Photos</Typography>
+                                <Box sx={{
+                                    display: 'grid',
+                                    gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' },
+                                    gap: 2,
+                                }}>
+                                    {profile.photos.map((photo: any, index: number) => (
+                                        <Box
+                                            key={photo.id}
+                                            sx={{
+                                                aspectRatio: '1',
+                                                borderRadius: 3,
+                                                overflow: 'hidden',
+                                                cursor: 'pointer',
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                                transition: 'transform 0.2s',
+                                                '&:hover': { transform: 'scale(1.02)' }
+                                            }}
+                                            onClick={() => {
+                                                setLightboxIndex(index);
+                                                setLightboxOpen(true);
+                                            }}
+                                        >
+                                            <Box
+                                                component="img"
+                                                src={photo.url?.startsWith('http') ? photo.url : `${API_URL.replace('/api', '')}/uploads/${photo.url}`}
+                                                alt={`Photo ${index + 1}`}
+                                                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                        </Box>
+                                    ))}
+                                </Box>
+                                <GalleryLightbox
+                                    open={lightboxOpen}
+                                    onClose={() => setLightboxOpen(false)}
+                                    images={profile.photos.map((p: any) => ({ id: p.id, url: p.url }))}
+                                    initialIndex={lightboxIndex}
+                                />
+                            </Paper>
+                        )}
                     </Container>
                 </Box>
             </DashboardLayout>
