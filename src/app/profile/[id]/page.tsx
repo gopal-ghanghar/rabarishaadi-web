@@ -35,11 +35,13 @@ import {
     Bookmark,
     MoreHoriz,
     Flag,
-    Block
+    Block,
+    Share
 } from '@mui/icons-material';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import ClientRouteGuard from '@/components/auth/ClientRouteGuard';
 import GalleryLightbox from '@/components/profile/GalleryLightbox';
+import ShareProfileDialog from '@/components/profile/ShareProfileDialog';
 
 import ConnectButton from '@/components/common/ConnectButton';
 import { connectionService } from '@/lib/services/connection';
@@ -60,9 +62,34 @@ export default function ProfileDetailsPage() {
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null);
+    const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+    const [shareUrl, setShareUrl] = useState('');
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setMoreMenuAnchor(event.currentTarget);
     const handleMenuClose = () => setMoreMenuAnchor(null);
+
+    const handleShareProfile = async () => {
+        handleMenuClose();
+        if (!profile) return;
+        try {
+            const res = await fetchApi('/profile/share', {
+                method: 'POST',
+                body: JSON.stringify({ profileId: profile.id })
+            });
+            if (res.shareUrl) {
+                // If the backend returns a URL (e.g., https://rabarishaadi.com/p/xxx), you can modify logic to use dynamic host instead
+                // e.g. const fullUrl = `${window.location.protocol}//${window.location.host}/p/${res.shareUrl.split('/').pop()}`;
+                // We'll use the dynamic host instead to ensure it works in all environments
+                const token = res.shareUrl.split('/').pop();
+                const fullUrl = `${window.location.protocol}//${window.location.host}/p/${token}`;
+                setShareUrl(fullUrl);
+                setIsShareDialogOpen(true);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to generate share link');
+        }
+    };
 
     useEffect(() => {
         if (!id) return;
@@ -261,6 +288,10 @@ export default function ProfileDetailsPage() {
                                                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                                                 slotProps={{ paper: { sx: { borderRadius: 2, minWidth: 200, mt: 1, boxShadow: 4 } } }}
                                             >
+                                                <MenuItem onClick={handleShareProfile}>
+                                                    <ListItemIcon><Share fontSize="small" /></ListItemIcon>
+                                                    <ListItemText>Share Profile</ListItemText>
+                                                </MenuItem>
                                                 <MenuItem onClick={() => { handleMenuClose(); alert('Report feature coming soon'); }}>
                                                     <ListItemIcon><Flag fontSize="small" /></ListItemIcon>
                                                     <ListItemText>Report Profile</ListItemText>
@@ -386,6 +417,12 @@ export default function ProfileDetailsPage() {
                                 />
                             </Paper>
                         )}
+                        
+                        <ShareProfileDialog 
+                            open={isShareDialogOpen}
+                            onClose={() => setIsShareDialogOpen(false)}
+                            shareUrl={shareUrl}
+                        />
                     </Container>
                 </Box>
             </DashboardLayout>
