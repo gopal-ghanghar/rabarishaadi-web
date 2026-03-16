@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Cropper from 'react-easy-crop';
 import {
     Dialog,
@@ -10,16 +10,30 @@ import {
     Slider,
     Typography,
     Stack,
-    IconButton
+    IconButton,
+    Tabs,
+    Tab,
+    CircularProgress,
+    Paper,
+    Chip
 } from '@mui/material';
 import {
     ZoomIn,
     ZoomOut,
     RotateRight,
     Close as CloseIcon,
-    CloudUpload
+    CloudUpload,
+    Collections as CollectionsIcon,
+    Star as StarIcon,
+    CheckCircle
 } from '@mui/icons-material';
 import { fetchApi, API_URL } from '@/lib/api';
+
+interface PhotoItem {
+    id: number;
+    url: string;
+    isPrimary: boolean;
+}
 
 interface ImageUploadModalProps {
     open: boolean;
@@ -28,12 +42,37 @@ interface ImageUploadModalProps {
 }
 
 export default function ImageUploadModal({ open, onClose, onUploadSuccess }: ImageUploadModalProps) {
+    const [tab, setTab] = useState(0);
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
     const [uploading, setUploading] = useState(false);
+
+    // Gallery tab state
+    const [galleryPhotos, setGalleryPhotos] = useState<PhotoItem[]>([]);
+    const [loadingGallery, setLoadingGallery] = useState(false);
+    const [selectedPhotoId, setSelectedPhotoId] = useState<number | null>(null);
+    const [settingPrimary, setSettingPrimary] = useState(false);
+
+    useEffect(() => {
+        if (open && tab === 1) {
+            loadGallery();
+        }
+    }, [open, tab]);
+
+    const loadGallery = async () => {
+        setLoadingGallery(true);
+        try {
+            const data = await fetchApi('/gallery/my');
+            setGalleryPhotos(data);
+        } catch (error) {
+            console.error('Failed to load gallery', error);
+        } finally {
+            setLoadingGallery(false);
+        }
+    };
 
     const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -138,85 +177,216 @@ export default function ImageUploadModal({ open, onClose, onUploadSuccess }: Ima
         }
     };
 
+    const handleSelectFromGallery = async () => {
+        if (!selectedPhotoId) return;
+
+        setSettingPrimary(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/gallery/${selectedPhotoId}/set-primary`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error('Failed to set profile picture');
+
+            const data = await response.json();
+            onUploadSuccess(data.fileName);
+            handleClose();
+        } catch (error) {
+            console.error(error);
+            alert('Failed to set profile picture');
+        } finally {
+            setSettingPrimary(false);
+        }
+    };
+
     const handleClose = () => {
         setImageSrc(null);
         setZoom(1);
         setRotation(0);
+        setTab(0);
+        setSelectedPhotoId(null);
         onClose();
+    };
+
+    const getImageUrl = (url: string) => {
+        if (url.startsWith('http')) return url;
+        return `${API_URL.replace('/api', '')}/uploads/${url}`;
     };
 
     return (
         <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                Upload Profile Picture
+                Profile Picture
                 <IconButton onClick={handleClose} size="small"><CloseIcon /></IconButton>
             </DialogTitle>
             <DialogContent>
-                {!imageSrc ? (
-                    <Box sx={{ p: 4, textAlign: 'center', border: '2px dashed #ccc', borderRadius: 2, cursor: 'pointer' }}>
-                        <input
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            id="raised-button-file"
-                            type="file"
-                            onChange={onFileChange}
-                        />
-                        <label htmlFor="raised-button-file">
-                            <Button variant="contained" component="span" startIcon={<CloudUpload />}>
-                                Select Image
-                            </Button>
-                        </label>
-                    </Box>
-                ) : (
-                    <Box sx={{ position: 'relative', height: 400, width: '100%', bgcolor: '#333' }}>
-                        <Cropper
-                            image={imageSrc}
-                            crop={crop}
-                            zoom={zoom}
-                            rotation={rotation}
-                            aspect={1} // Square aspect ratio
-                            onCropChange={setCrop}
-                            onCropComplete={onCropComplete}
-                            onZoomChange={setZoom}
-                            onRotationChange={setRotation}
-                        />
-                    </Box>
+                <Tabs
+                    value={tab}
+                    onChange={(_, v) => setTab(v)}
+                    variant="fullWidth"
+                    sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+                >
+                    <Tab icon={<CloudUpload />} label="Upload New" iconPosition="start" />
+                    <Tab icon={<CollectionsIcon />} label="From Gallery" iconPosition="start" />
+                </Tabs>
+
+                {tab === 0 && (
+                    <>
+                        {!imageSrc ? (
+                            <Box sx={{ p: 4, textAlign: 'center', border: '2px dashed #ccc', borderRadius: 2, cursor: 'pointer' }}>
+                                <input
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    id="raised-button-file"
+                                    type="file"
+                                    onChange={onFileChange}
+                                />
+                                <label htmlFor="raised-button-file">
+                                    <Button variant="contained" component="span" startIcon={<CloudUpload />}>
+                                        Select Image
+                                    </Button>
+                                </label>
+                            </Box>
+                        ) : (
+                            <Box sx={{ position: 'relative', height: 400, width: '100%', bgcolor: '#333' }}>
+                                <Cropper
+                                    image={imageSrc}
+                                    crop={crop}
+                                    zoom={zoom}
+                                    rotation={rotation}
+                                    aspect={1} // Square aspect ratio
+                                    onCropChange={setCrop}
+                                    onCropComplete={onCropComplete}
+                                    onZoomChange={setZoom}
+                                    onRotationChange={setRotation}
+                                />
+                            </Box>
+                        )}
+
+                        {imageSrc && (
+                            <Box sx={{ mt: 3 }}>
+                                <Typography gutterBottom>Zoom</Typography>
+                                <Stack spacing={2} direction="row" sx={{ mb: 2 }} alignItems="center">
+                                    <ZoomOut />
+                                    <Slider
+                                        value={zoom}
+                                        min={1}
+                                        max={3}
+                                        step={0.1}
+                                        onChange={(e, zoom) => setZoom(Number(zoom))}
+                                    />
+                                    <ZoomIn />
+                                </Stack>
+
+                                <Typography gutterBottom>Rotation</Typography>
+                                <Stack spacing={2} direction="row" alignItems="center">
+                                    <RotateRight />
+                                    <Slider
+                                        value={rotation}
+                                        min={0}
+                                        max={360}
+                                        step={1}
+                                        onChange={(e, rotation) => setRotation(Number(rotation))}
+                                    />
+                                </Stack>
+                            </Box>
+                        )}
+                    </>
                 )}
 
-                {imageSrc && (
-                    <Box sx={{ mt: 3 }}>
-                        <Typography gutterBottom>Zoom</Typography>
-                        <Stack spacing={2} direction="row" sx={{ mb: 2 }} alignItems="center">
-                            <ZoomOut />
-                            <Slider
-                                value={zoom}
-                                min={1}
-                                max={3}
-                                step={0.1}
-                                onChange={(e, zoom) => setZoom(Number(zoom))}
-                            />
-                            <ZoomIn />
-                        </Stack>
-
-                        <Typography gutterBottom>Rotation</Typography>
-                        <Stack spacing={2} direction="row" alignItems="center">
-                            <RotateRight />
-                            <Slider
-                                value={rotation}
-                                min={0}
-                                max={360}
-                                step={1}
-                                onChange={(e, rotation) => setRotation(Number(rotation))}
-                            />
-                        </Stack>
+                {tab === 1 && (
+                    <Box>
+                        {loadingGallery ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : galleryPhotos.length === 0 ? (
+                            <Box sx={{ textAlign: 'center', p: 4 }}>
+                                <CollectionsIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                                <Typography color="text.secondary">
+                                    No photos in your gallery yet. Upload some photos first!
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <Box sx={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(3, 1fr)',
+                                gap: 1.5,
+                            }}>
+                                {galleryPhotos.map(photo => (
+                                    <Paper
+                                        key={photo.id}
+                                        elevation={0}
+                                        onClick={() => setSelectedPhotoId(photo.id)}
+                                        sx={{
+                                            position: 'relative',
+                                            aspectRatio: '1',
+                                            borderRadius: 2,
+                                            overflow: 'hidden',
+                                            cursor: 'pointer',
+                                            border: '2px solid',
+                                            borderColor: selectedPhotoId === photo.id ? 'primary.main' : 'divider',
+                                            transition: 'all 0.2s',
+                                            '&:hover': { borderColor: 'primary.light' }
+                                        }}
+                                    >
+                                        <Box
+                                            component="img"
+                                            src={getImageUrl(photo.url)}
+                                            alt="Gallery photo"
+                                            sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                        {selectedPhotoId === photo.id && (
+                                            <Box sx={{
+                                                position: 'absolute',
+                                                top: 0, left: 0, right: 0, bottom: 0,
+                                                bgcolor: 'rgba(25, 118, 210, 0.3)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}>
+                                                <CheckCircle sx={{ color: 'white', fontSize: 32 }} />
+                                            </Box>
+                                        )}
+                                        {photo.isPrimary && (
+                                            <Chip
+                                                icon={<StarIcon sx={{ fontSize: 12 }} />}
+                                                label="Current"
+                                                size="small"
+                                                color="primary"
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: 4,
+                                                    left: 4,
+                                                    fontSize: '0.65rem',
+                                                    height: 20,
+                                                }}
+                                            />
+                                        )}
+                                    </Paper>
+                                ))}
+                            </Box>
+                        )}
                     </Box>
                 )}
             </DialogContent>
             <DialogActions>
                 <Button onClick={handleClose}>Cancel</Button>
-                <Button onClick={handleUpload} variant="contained" disabled={!imageSrc || uploading}>
-                    {uploading ? 'Uploading...' : 'Save Picture'}
-                </Button>
+                {tab === 0 ? (
+                    <Button onClick={handleUpload} variant="contained" disabled={!imageSrc || uploading}>
+                        {uploading ? 'Uploading...' : 'Save Picture'}
+                    </Button>
+                ) : (
+                    <Button
+                        onClick={handleSelectFromGallery}
+                        variant="contained"
+                        disabled={!selectedPhotoId || settingPrimary}
+                    >
+                        {settingPrimary ? 'Setting...' : 'Use as Profile Picture'}
+                    </Button>
+                )}
             </DialogActions>
         </Dialog>
     );
